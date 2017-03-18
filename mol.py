@@ -6,6 +6,16 @@ import sys
 Determine molecular weight from input formula based on iterative term expansion using regular expressions.
 Formula may contain any of "( { [ ] } )" separators and spaces. 
 
+Usage:
+	$ python mol.py '<formula as argument>'
+	
+	$ python
+	>>> import mol
+	>>> mol.main('<formula as argument>'
+	
+	$ python mol.py 	#display prompt when invoked without arguments
+	Enter formula: 	
+	
 '''
 
 def calc(f):
@@ -45,24 +55,22 @@ def calc(f):
 			esc_x = ''.join([ '\\'+y if y in '()' else y for y in x ])	# Need to escape any parentheses for regex substitution (on next line)
 			f = re.sub( esc_x, subfrags_exp, f, count=1 )
 	
-	mol_f = { i:f.count(i) for i in list( set( re.findall('[A-Z][a-z]?',f) ) ) }
+	els = re.findall('[A-Z][a-z]?',f)
+	mol_f = {i:els.count(i) for i in set(els)}
 	return mol_f
 
-def main():
+def main(*args):
 	
-	
-	#f = 'Fe4{O2 CCH3 }3 Cl[ HO2C(CH2)C(O)CH3 ]2 F2I2'
-	
-	#'''
-	if len(sys.argv) == 2:	
-		f = str(sys.argv[1])
+	if args:
+		f = args
+	elif len(sys.argv) == 2:
+		f = sys.argv[1]
 	else:
 		f = str(raw_input('Enter formula: '))
-	#'''	
 		
 	mol_f = calc(f)
-	if emp_f:
-		print 'Molecular formula:',' '.join([x+str(emp_f[x]) for x in emp_f])
+	if mol_f:
+		print 'Molecular formula:',' '.join([x+str(mol_f[x]) for x in mol_f])
 	
 
 if __name__ == '__main__':
