@@ -2,6 +2,8 @@
 import re
 import string
 import sys
+from ref import mass_data_generator
+
 '''
 Determine molecular weight from input formula based on iterative term expansion using regular expressions.
 Formula may contain any of "( { [ ] } )" separators and spaces. 
@@ -51,26 +53,51 @@ def calc(f):
 			else:
 				n = 1	
 				
-			subfrags_exp = ''.join([ int(n)*y for y in re.findall( '[A-Z][a-z]?', x ) ])
-			esc_x = ''.join([ '\\'+y if y in '()' else y for y in x ])	# Need to escape any parentheses for regex substitution (on next line)
-			f = re.sub( esc_x, subfrags_exp, f, count=1 )
+			subfrags_expansion = ''.join([ int(n)*y for y in re.findall( '[A-Z][a-z]?', x ) ])
+			escaped_x = ''.join([ '\\'+y if y in '()' else y for y in x ])	# Need to escape any parentheses for regex substitution (on next line)
+			f = re.sub( escaped_x, subfrags_expansion, f, count=1 )
 	
-	els = re.findall('[A-Z][a-z]?',f)
-	mol_f = {i:els.count(i) for i in set(els)}
+	all_els = re.findall('[A-Z][a-z]?',f)
+	if not all_els:
+		print 'formula has no valid elements'
+		sys.exit()
+	els = list(set(all_els))
+	mol_f = {i:all_els.count(i) for i in els}
+	mol_f_formatted = ' '.join([x+str(mol_f[x]) for x in mol_f])
+	
 	return mol_f
 
+
 def main(*args):
-	
+	'''
+	1. Obtain formula via arguments or prompt
+	2. Generate element:element-count dictionary
+	3. Generate element mass standard data from mass_data_generator.py
+	4. Ensure all elements in formula are valid
+	5. Determine molecular weight (average, based on isotope abundance)
+	'''
 	if args:
 		f = args
 	elif len(sys.argv) == 2:
 		f = sys.argv[1]
 	else:
 		f = str(raw_input('Enter formula: '))
-		
+	
+	print 'Formula input:',f
 	mol_f = calc(f)
+	
+	elements = mass_data_generator.generate_mass_data()
+	
+	if any([x not in elements for x in mol_f]):
+		print 'formula contains invalid elements:',x
+		sys.exit()
+	
 	if mol_f:
 		print 'Molecular formula:',' '.join([x+str(mol_f[x]) for x in mol_f])
+	
+	mw = sum([mol_f[el]*elements[el].molar_mass for el in mol_f])
+	print 'Molecular weight:',mw
+
 	
 
 if __name__ == '__main__':
