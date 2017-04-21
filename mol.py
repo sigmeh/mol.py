@@ -3,6 +3,7 @@ import re
 import string
 import sys
 from ref import mass_data_generator
+from ref import peak_predictor
 
 '''
 Determine molecular weight from input formula based on iterative term expansion using regular expressions.
@@ -31,10 +32,11 @@ def calc(f):
 	'''
 	
 	f = re.sub( '\{|\[' , '(', re.sub( '\}|\]' , ')' , f ) ).replace(' ','').replace('()','')	
-	valid_chars = string.ascii_letters + string.octdigits + '()'
+	valid_chars = string.ascii_letters + '0123456789()'
+	
 	if f.count('(') != f.count(')') or any([x not in valid_chars for x in f]): 
 		print 'invalid formula'
-		return None
+		sys.exit()
 
 	regex = [	'[A-Z][a-z]?\d+',
 				'\(\w*\)\d*'	]
@@ -64,8 +66,8 @@ def calc(f):
 	els = list(set(all_els))
 	mol_f = {i:all_els.count(i) for i in els}
 	mol_f_formatted = ' '.join([x+str(mol_f[x]) for x in mol_f])
-	
-	return mol_f
+	#print mol_f
+	return mol_f, all_els
 
 
 def main(*args):
@@ -81,12 +83,22 @@ def main(*args):
 	elif len(sys.argv) == 2:
 		f = sys.argv[1]
 	else:
-		f = str(raw_input('Enter formula: '))
-	
+		
+		f='RuH'
+		f = 'Ru2(O2C5H9)4'
+		##
+		##
+		#f = str(raw_input('Enter formula: '))
+		##
+		##
+		
 	print 'Formula input:',f
-	mol_f = calc(f)
+	mol_f,all_els = calc(f)
+	'''mol_f is molecular formula dictionary (key = atom, value = # atoms); all_els is expanded list of atoms (containing repeats)'''
+	#print all_els
 	
 	elements = mass_data_generator.generate_mass_data()
+	''' elements['Ru'].masses is list of exact masses'''
 	
 	if any([x not in elements for x in mol_f]):
 		print 'formula contains invalid elements:',x
@@ -98,6 +110,14 @@ def main(*args):
 	mw = sum([mol_f[el]*elements[el].molar_mass for el in mol_f])
 	print 'Molecular weight:',mw
 
+	#for el in all_els:
+	#	print elements[el].masses, elements[el].abundances
+
+
+
+	peak_profile = peak_predictor.predict(atoms=all_els,elements=elements)
+	
+	#print mol_f_formatted
 	
 
 if __name__ == '__main__':
