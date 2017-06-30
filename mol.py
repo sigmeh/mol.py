@@ -3,23 +3,33 @@ import re
 import string
 import sys
 from ref import mass_data_generator
-from ref import peak_predictor
+from ref import peak_predictor_v01
 
 '''
 Determine molecular weight from input formula based on iterative term expansion using regular expressions.
 Formula may contain any of "( { [ ] } )" separators and spaces. 
 
 Usage:
-	$ python mol.py '<formula as argument>'
+	$ python mol.py [formula]
 	
 	$ python
 	>>> import mol
-	>>> mol.main('<formula as argument>'
+	>>> mol.main( formula_here )
 	
 	$ python mol.py 	#display prompt when invoked without arguments
 	Enter formula: 	
+
+
+Notes:
+	During term expansion, ref/known_fragments.txt is consulted, and any instances of fragments in the formula,
+	whose definitions are contained in the known_fragments.txt file, are replaced first. 
 	
 '''
+
+def get_known_fragments():
+	with open ('ref/known_fragments.txt','r') as f:
+		known_fragments = {x.split(',')[0].strip():x.split(',')[1].strip() for x in f.read().split('\n') if x and not x.startswith('#')}
+	return known_fragments
 
 def calc(f):
 	'''	1. Convert separators to parentheses and remove spaces
@@ -37,7 +47,11 @@ def calc(f):
 	if f.count('(') != f.count(')') or any([x not in valid_chars for x in f]): 
 		print 'invalid formula'
 		sys.exit()
-
+	
+	known_fragments = get_known_fragments()
+	for frag in known_fragments:
+		f = re.sub( frag, known_fragments[frag] , f )
+	
 	regex = [	'[A-Z][a-z]?\d+',
 				'\(\w*\)\d*'	]
 			
@@ -77,6 +91,7 @@ def main(*args):
 	3. Generate element mass standard data from mass_data_generator.py
 	4. Ensure all elements in formula are valid
 	5. Determine molecular weight (average, based on isotope abundance)
+	6. Predict exact isotopic distribution from known element masses using peak_predictor.py
 	'''
 	if args:
 		f = args
@@ -84,8 +99,9 @@ def main(*args):
 		f = sys.argv[1]
 	else:
 		
-		f='RuH'
-		f = 'Ru2(O2C5H9)4'
+		# testing area
+		f = 'OPiv'
+		#f = 'OPiv'
 		##
 		##
 		#f = str(raw_input('Enter formula: '))
@@ -95,29 +111,36 @@ def main(*args):
 	print 'Formula input:',f
 	mol_f,all_els = calc(f)
 	'''mol_f is molecular formula dictionary (key = atom, value = # atoms); all_els is expanded list of atoms (containing repeats)'''
-	#print all_els
 	
 	elements = mass_data_generator.generate_mass_data()
+	#print elements
 	''' elements['Ru'].masses is list of exact masses'''
 	
-	if any([x not in elements for x in mol_f]):
-		print 'formula contains invalid elements:',x
-		sys.exit()
+	for x in mol_f:
+		if x not in elements:
+			print 'Formula contains invalid elements:','\"%s\"'%x
+			sys.exit()
+
+	#if any([x not in elements for x in mol_f]):
+	#	print 'formula contains invalid elements:',x
+	#	sys.exit()
 	
 	if mol_f:
 		print 'Molecular formula:',' '.join([x+str(mol_f[x]) for x in mol_f])
 	
 	mw = sum([mol_f[el]*elements[el].molar_mass for el in mol_f])
 	print 'Molecular weight:',mw
-
-	#for el in all_els:
-	#	print elements[el].masses, elements[el].abundances
-
-
-
-	peak_profile = peak_predictor.predict(atoms=all_els,elements=elements)
 	
-	#print mol_f_formatted
+	#print all_els
+	#print mol_f
+	formatted_mol_f = ''.join(sorted([x+str(mol_f[x]) for x in mol_f]))
+	
+	
+	peak_profile = peak_predictor_v01.predict(atoms=all_els,elements=elements,input_formula=f,formatted_mol_f=formatted_mol_f)
+	print formatted_mol_f
+	sys.exit()
+	print 'peak_profile:',peak_profile
+	
 	
 
 if __name__ == '__main__':
